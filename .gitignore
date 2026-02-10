@@ -1,0 +1,16 @@
+# Ignore everything by default
+*
+
+# Keep ignore file
+!.gitignore
+
+# Keep core artifacts intended for sync
+!figures/
+!figures/**
+!scripts/
+!scripts/**
+!README.md
+!did_event_study.ipynb
+!other_models.ipynb
+!eda_deep_dive.ipynb
+!rd_identification.ipynb
