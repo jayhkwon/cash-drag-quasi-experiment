@@ -4,6 +4,44 @@ This repository studies a business problem: can multi-channel nudges reduce roll
 
 The project is synthetic by design, but intentionally not "clean toy data." It includes targeting, non-compliance, overlap, trend, and missingness behaviors that make identification harder and closer to production reality.
 
+## Executive Summary
+
+- **Task:** estimate whether multi-channel nudges increase investing behavior after rollover (reduce cash drag).
+- **Primary design:** staggered-adoption DiD with account and month fixed effects, plus event-study diagnostics.
+- **Robustness stack:** eventually-treated FE view, cohort/event-time aggregates (CS/SA-style), IPW, doubly robust ATE, and fuzzy RD sensitivity checks.
+- **Directional conclusion:** effect is consistently positive across DiD-family and account-level robustness estimators.
+- **Caution:** pre-trend diagnostics are mixed in the full sample; decision framing is guardrail-based, not “single-number certainty.”
+- **Decision objective:** scale nudges only when incremental lift is economically material and diagnostics remain within policy limits.
+
+## Results at a Glance
+
+Validated on `2026-02-10` with default synthetic generator settings (`seed=42`, `50k` accounts, `36` months).
+
+| Estimator / View | Target | Estimate | Uncertainty / Diagnostic | Decision Interpretation |
+|---|---|---:|---|---|
+| TWFE-style DiD | Monthly invest probability | +0.1638 | Clustered SE ~0.001 | Strong positive directional signal |
+| Eventually-treated FE | Monthly invest probability | +0.1607 | Clustered SE ~0.001 | Similar magnitude within treated cohorts |
+| CS-style post ATT (`e>=0`) | Monthly invest probability | +0.1883 | Pre mean (`e<=-2`) = -0.0858 | Positive post effect; interpret with pre-period caution |
+| SA-style post ATT (`e>=0`) | Monthly invest probability | +0.1883 | Same event-time aggregation family | Supports directional consistency |
+| IPW ATE | Invest within 12 months | +0.3739 | 95% CI [0.3540, 0.3949] | Positive account-level effect |
+| Doubly robust ATE | Invest within 12 months | +0.3738 | 95% CI [0.3664, 0.3815] | Robust positive effect |
+| Fuzzy RD (`bw=2`) | Local cutoff effect | +0.0635 | 95% CI [-0.1885, 0.3223] | Unstable/local only; sensitivity evidence, not primary |
+
+## Explainability + Decisioning Framing
+
+“Explainability” in this causal setting means clarity on **where** effects appear and **when** they are credible:
+
+1. Event-study decomposition explains timing and pre/post dynamics.
+2. Segment heterogeneity (low/mid/high balance lift) explains where uplift is strongest.
+3. Balance diagnostics (`|SMD|`) explain whether weighting corrected comparability.
+4. RD sensitivity explains local-instability risk near eligibility boundaries.
+
+What this means for a risk or operations team:
+
+1. Treat DiD-family uplift as decision-grade directional evidence.
+2. Use robustness agreement (TWFE + eventually-treated + IPW/DR) as confidence support.
+3. Keep rollout tied to explicit governance triggers when diagnostics deteriorate.
+
 ## Scope
 
 - Deep EDA and data credibility checks before modeling.
@@ -15,6 +53,18 @@ The project is synthetic by design, but intentionally not "clean toy data." It i
 ## Reproducibility
 
 Data is generated locally and excluded from version control.
+
+Suggested setup (relative paths only):
+
+```bash
+cd cash_drag
+python -m venv .venv
+source .venv/bin/activate
+pip install numpy pandas scipy statsmodels matplotlib seaborn jupyter
+python scripts/generate_synthetic_data.py --outdir data
+```
+
+Minimal data-generation command:
 
 ```bash
 python scripts/generate_synthetic_data.py --outdir data
@@ -32,6 +82,20 @@ Recommended notebook order:
 2. `did_event_study.ipynb`
 3. `other_models.ipynb`
 4. `rd_identification.ipynb`
+
+## How This Would Be Used in Production
+
+1. Define a monthly scaling policy with explicit thresholds:
+   - minimum holdout-adjusted lift,
+   - minimum quality/fairness constraints,
+   - downside guardrails for key segments.
+2. Set rollout state each cycle: `scale`, `maintain`, or `pause`.
+3. Keep a persistent holdout slice to validate drift-adjusted incremental lift.
+4. Monitor operational diagnostics:
+   - score/treatment/exposure drift,
+   - segment-level degradation,
+   - compliance and overlap behavior changes.
+5. Recalibrate policy thresholds quarterly as economics and risk appetite shift.
 
 ## Tracked vs Ignored
 
